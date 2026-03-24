@@ -1,0 +1,9 @@
+apiVersion: v2
+name: order-service
+description: Helm chart for order-service
+type: application
+version: 0.1.0
+dependencies:
+  - name: default-chart
+    version: "0.1.0"
+    repository: "file://../../default-chart"

@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: platform
+data:
+  config.yaml: |
+    receivers:
+      filelog:
+        include:
+          - /var/log/pods/*/*/*.log
+        start_at: beginning
+        include_file_path: true
+        operators:
+          # Parse container log JSON wrapper
+          - type: json_parser
+            id: parse_docker_log
+            on_error: send
+            timestamp:
+              parse_from: attributes.time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+          # Extract namespace from file path: /var/log/pods/<namespace>_<pod>_<uid>/<container>/<n>.log
+          - type: regex_parser
+            id: extract_namespace
+            regex: '^/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/'
+            parse_from: attributes["log.file.path"]
+            on_error: send
+          # Extract service name from pod label (falls back to container name)
+          - type: move
+            from: attributes.namespace
+            to: resource["k8s.namespace.name"]
+          - type: move
+            from: attributes.container
+            to: resource["service.name"]
+          # Drop logs older than LOG_RETENTION_DAYS
+          - type: filter
+            id: retention_filter
+            expr: 'attributes["log.age_days"] != nil and attributes["log.age_days"] > env("LOG_RETENTION_DAYS")'
+
+    processors:
+      batch:
+        timeout: 5s
+      resource:
+        attributes:
+          - key: k8s.cluster.name
+            value: "minikube"
+            action: insert
+
+    exporters:
+      otlp:
+        endpoint: "signoz-otel-collector.platform.svc.cluster.local:4317"
+        tls:
+          insecure: true
+      logging:
+        verbosity: normal
+
+    service:
+      pipelines:
+        logs:
+          receivers: [filelog]
+          processors: [batch, resource]
+          exporters: [otlp, logging]

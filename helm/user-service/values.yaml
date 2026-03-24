@@ -1,0 +1,17 @@
+# Overrides default-chart values for user-service
+replicaCount: 1
+
+image:
+  repository: user-service
+  tag: "latest"
+  pullPolicy: Never   # use local minikube image
+
+service:
+  type: NodePort
+  port: 3000
+
+env:
+  - name: PORT
+    value: "3000"
+
+logRetentionDays: 7
