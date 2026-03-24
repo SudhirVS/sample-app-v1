@@ -42,7 +42,7 @@ chmod +x /usr/local/bin/minikube
 # ── Clone app ─────────────────────────────────────────────────────────────────
 echo "==> [6/7] Cloning app..."
 # Replace the URL below with your actual repo URL
-git clone https://github.com/<your-org>/sample-app.git "$APP_DIR"
+git clone https://github.com/SudhirVS/sample-app-v1.git "$APP_DIR"
 chown -R ubuntu:ubuntu "$APP_DIR"
 
 # ── Deploy ────────────────────────────────────────────────────────────────────
