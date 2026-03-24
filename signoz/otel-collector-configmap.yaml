@@ -12,35 +12,38 @@ data:
         start_at: beginning
         include_file_path: true
         operators:
-          # Parse container log JSON wrapper
-          - type: json_parser
-            id: parse_docker_log
-            on_error: send
+          # Parse containerd log format: <timestamp> <stream> <flags> <log>
+          - type: regex_parser
+            id: parse_containerd
+            regex: '^(?P<time>\S+) (?P<stream>stdout|stderr) (?P<flags>\S+) (?P<log>.*)$'
             timestamp:
               parse_from: attributes.time
               layout: '%Y-%m-%dT%H:%M:%S.%LZ'
-          # Extract namespace from file path: /var/log/pods/<namespace>_<pod>_<uid>/<container>/<n>.log
+          # Move raw log line to body
+          - type: move
+            from: attributes.log
+            to: body
+          # Parse app JSON from body
+          - type: json_parser
+            id: parse_app_json
+            on_error: send
+          # Extract namespace and container from file path
           - type: regex_parser
             id: extract_namespace
-            regex: '^/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/'
+            regex: '^/var/log/pods/(?P<k8s_namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/'
             parse_from: attributes["log.file.path"]
             on_error: send
-          # Extract service name from pod label (falls back to container name)
           - type: move
-            from: attributes.namespace
-            to: resource["k8s.namespace.name"]
+            from: attributes.k8s_namespace
+            to: attributes["k8s.namespace.name"]
           - type: move
             from: attributes.container
-            to: resource["service.name"]
-          # Drop logs older than LOG_RETENTION_DAYS
-          - type: filter
-            id: retention_filter
-            expr: 'attributes["log.age_days"] != nil and attributes["log.age_days"] > env("LOG_RETENTION_DAYS")'
+            to: attributes["service.name"]
 
     processors:
       batch:
         timeout: 5s
-      resource:
+      resource/add:
         attributes:
           - key: k8s.cluster.name
             value: "minikube"
@@ -58,5 +61,5 @@ data:
       pipelines:
         logs:
           receivers: [filelog]
-          processors: [batch, resource]
+          processors: [batch, resource/add]
           exporters: [otlp, logging]
