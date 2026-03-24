@@ -19,7 +19,7 @@ helm repo update
 kubectl apply -f signoz/namespace.yaml
 helm upgrade --install signoz signoz/signoz \
   --namespace platform \
-  --set frontend.service.type=NodePort \
+  --set signoz-frontend.service.type=NodePort \
   --wait --timeout=5m
 
 echo "==> Deploying OpenTelemetry Collector (log retention: ${LOG_RETENTION_DAYS} days)..."
@@ -42,4 +42,4 @@ echo ""
 echo "--- Access URLs ---"
 echo "User Service:  $(minikube service user-service --url)"
 echo "Order Service: $(minikube service order-service --url)"
-echo "SigNoz UI:     $(minikube service signoz-frontend --namespace platform --url)"
+echo "SigNoz UI:     $(minikube service signoz-signoz-frontend --namespace platform --url)"
