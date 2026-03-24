@@ -6,4 +6,4 @@ version: 0.1.0
 dependencies:
   - name: default-chart
     version: "0.1.0"
-    repository: "file://../../default-chart"
+    repository: "file://../default-chart"
