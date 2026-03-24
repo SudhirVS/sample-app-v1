@@ -12,14 +12,14 @@ data:
         start_at: beginning
         include_file_path: true
         operators:
-          # Parse containerd log format: <timestamp> <stream> <flags> <log>
-          - type: regex_parser
-            id: parse_containerd
-            regex: '^(?P<time>\S+) (?P<stream>stdout|stderr) (?P<flags>\S+) (?P<log>.*)$'
+          # Parse Docker JSON log format: {"log":"...","stream":"stdout","time":"..."}
+          - type: json_parser
+            id: parse_docker_json
             timestamp:
               parse_from: attributes.time
               layout: '%Y-%m-%dT%H:%M:%S.%LZ'
-          # Move raw log line to body
+            on_error: send
+          # Move the log field to body
           - type: move
             from: attributes.log
             to: body
@@ -29,7 +29,7 @@ data:
             on_error: send
           # Extract namespace and container from file path
           - type: regex_parser
-            id: extract_namespace
+            id: extract_metadata
             regex: '^/var/log/pods/(?P<k8s_namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/'
             parse_from: attributes["log.file.path"]
             on_error: send

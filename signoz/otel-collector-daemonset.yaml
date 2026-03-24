@@ -27,7 +27,10 @@ spec:
               mountPath: /conf
             - name: varlogpods
               mountPath: /var/log/pods
-              readOnly: false
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
           resources:
             limits:
               cpu: 200m
@@ -42,3 +45,6 @@ spec:
         - name: varlogpods
           hostPath:
             path: /var/lib/docker/volumes/minikube/_data/log/pods
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/volumes/minikube/_data/lib/docker/containers
