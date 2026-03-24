@@ -12,42 +12,50 @@ data:
         start_at: beginning
         include_file_path: true
         operators:
-          # Parse Docker JSON log format: {"log":"...","stream":"stdout","time":"..."}
+          # Parse Docker JSON log wrapper: {"log":"...","stream":"stdout","time":"..."}
           - type: json_parser
             id: parse_docker_json
             timestamp:
               parse_from: attributes.time
               layout: '%Y-%m-%dT%H:%M:%S.%LZ'
             on_error: send
-          # Move the log field to body
+          # Move raw log string to body
           - type: move
             from: attributes.log
             to: body
-          # Parse app JSON from body
+          # Parse app-level JSON from body
           - type: json_parser
             id: parse_app_json
             on_error: send
-          # Extract namespace and container from file path
+          # Extract namespace, pod, container from file path
           - type: regex_parser
             id: extract_metadata
             regex: '^/var/log/pods/(?P<k8s_namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/'
             parse_from: attributes["log.file.path"]
             on_error: send
-          - type: move
-            from: attributes.k8s_namespace
-            to: attributes["k8s.namespace.name"]
-          - type: move
-            from: attributes.container
-            to: attributes["service.name"]
 
     processors:
       batch:
         timeout: 5s
-      resource/add:
+      # Promote extracted attributes to resource-level so SigNoz can filter on them
+      resource/labels:
         attributes:
+          - key: k8s.namespace.name
+            from_attribute: k8s_namespace
+            action: insert
+          - key: service.name
+            from_attribute: container
+            action: insert
           - key: k8s.cluster.name
             value: "minikube"
             action: insert
+      # Drop logs older than LOG_RETENTION_DAYS
+      filter/retention:
+        logs:
+          exclude:
+            match_type: expr
+            expressions:
+              - 'UnixNano(Now()) - UnixNano(log.ObservedTimestamp) > int(env("LOG_RETENTION_DAYS")) * 24 * 3600 * 1000000000'
 
     exporters:
       otlp:
@@ -61,5 +69,5 @@ data:
       pipelines:
         logs:
           receivers: [filelog]
-          processors: [batch, resource/add]
+          processors: [batch, resource/labels, filter/retention]
           exporters: [otlp, logging]

@@ -21,7 +21,7 @@ spec:
           args: ["--config=/conf/config.yaml"]
           env:
             - name: LOG_RETENTION_DAYS
-              value: "7"           # change N here or override via values
+              value: "7"
           volumeMounts:
             - name: config
               mountPath: /conf

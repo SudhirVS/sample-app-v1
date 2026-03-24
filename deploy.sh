@@ -19,13 +19,14 @@ helm repo update
 kubectl apply -f signoz/namespace.yaml
 helm upgrade --install signoz signoz/signoz \
   --namespace platform \
-  --wait --timeout=5m
+  --set queryService.retentionPeriod=${LOG_RETENTION_DAYS} \
+  --wait --timeout=10m
 
 echo "==> Deploying OpenTelemetry Collector (log retention: ${LOG_RETENTION_DAYS} days)..."
 kubectl apply -f signoz/otel-collector-rbac.yaml
 kubectl apply -f signoz/otel-collector-configmap.yaml
 
-# Patch retention days into DaemonSet env before applying
+# Inject LOG_RETENTION_DAYS into DaemonSet env before applying
 sed "s/value: \"7\"/value: \"${LOG_RETENTION_DAYS}\"/" signoz/otel-collector-daemonset.yaml | kubectl apply -f -
 
 echo "==> Deploying microservices via Helm..."
@@ -41,5 +42,10 @@ echo ""
 echo "--- Access URLs ---"
 echo "User Service:  $(minikube service user-service --url)"
 echo "Order Service: $(minikube service order-service --url)"
-kubectl patch svc signoz -n platform -p '{"spec":{"type":"NodePort"}}'
+kubectl patch svc signoz -n platform -p '{"spec":{"type":"NodePort"}}' 2>/dev/null || true
 echo "SigNoz UI:     $(minikube service signoz --namespace platform --url)"
+echo ""
+echo "--- Port-forward for external access ---"
+echo "Run: kubectl port-forward svc/user-service 3000:3000 --address 0.0.0.0 &"
+echo "Run: kubectl port-forward svc/order-service 3001:3001 --address 0.0.0.0 &"
+echo "Run: kubectl port-forward svc/signoz 8080:8080 --address 0.0.0.0 -n platform &"

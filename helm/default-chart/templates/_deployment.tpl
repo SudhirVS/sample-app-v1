@@ -14,6 +14,7 @@ spec:
     metadata:
       labels:
         app: {{ .Release.Name }}
+        app.kubernetes.io/name: {{ .Release.Name }}
     spec:
       containers:
         - name: {{ .Release.Name }}
