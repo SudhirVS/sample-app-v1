@@ -111,7 +111,7 @@ Each pod emits structured JSON logs with `service` and `namespace` fields. The O
 
 ## Log Retention
 
-Log retention is controlled at two levels:
+Default retention is **15 days**. Log retention is controlled at two levels:
 
 ### 1. OTel Collector (pipeline-level)
 The `filter/retention` processor drops log records older than `LOG_RETENTION_DAYS` before they reach SigNoz. Set via env variable:
