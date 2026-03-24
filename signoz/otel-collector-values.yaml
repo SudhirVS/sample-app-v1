@@ -1,0 +1,67 @@
+otelCollector:
+  config:
+    receivers:
+      filelog:
+        include:
+          - /var/log/pods/*/*/*.log
+        start_at: beginning
+        include_file_path: true
+        operators:
+          # Parse Docker JSON log wrapper: {"log":"...","stream":"stdout","time":"..."}
+          - type: json_parser
+            id: parse_docker_json
+            timestamp:
+              parse_from: attributes.time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+            on_error: send
+          # Move raw log string to body
+          - type: move
+            from: attributes.log
+            to: body
+          # Parse app-level JSON from body
+          - type: json_parser
+            id: parse_app_json
+            on_error: send
+          # Extract namespace and container name from file path
+          - type: regex_parser
+            id: extract_metadata
+            regex: '^/var/log/pods/(?P<k8s_namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/'
+            parse_from: attributes["log.file.path"]
+            on_error: send
+
+    processors:
+      resource/labels:
+        attributes:
+          - key: k8s.namespace.name
+            from_attribute: k8s_namespace
+            action: insert
+          - key: service.name
+            from_attribute: container
+            action: insert
+          - key: k8s.cluster.name
+            value: "minikube"
+            action: insert
+
+    service:
+      pipelines:
+        logs:
+          receivers: [otlp, filelog]
+          processors: [batch, resource/labels]
+          exporters: [clickhouselogsexporter]
+
+  # Mount host log paths so filelog receiver can read pod logs
+  extraVolumes:
+    - name: varlogpods
+      hostPath:
+        path: /var/log/pods
+    - name: varlibdockercontainers
+      hostPath:
+        path: /var/lib/docker/containers
+
+  extraVolumeMounts:
+    - name: varlogpods
+      mountPath: /var/log/pods
+      readOnly: true
+    - name: varlibdockercontainers
+      mountPath: /var/lib/docker/containers
+      readOnly: true

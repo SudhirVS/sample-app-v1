@@ -13,21 +13,15 @@ echo "==> Building Docker images inside Minikube..."
 docker build -t user-service:latest ./services/user-service
 docker build -t order-service:latest ./services/order-service
 
-echo "==> Deploying SigNoz via Helm..."
+echo "==> Deploying SigNoz via Helm (with built-in OTel Collector log collection)..."
 helm repo add signoz https://charts.signoz.io
 helm repo update
 kubectl apply -f signoz/namespace.yaml
 helm upgrade --install signoz signoz/signoz \
   --namespace platform \
+  --values signoz/otel-collector-values.yaml \
   --set queryService.retentionPeriod=${LOG_RETENTION_DAYS} \
   --wait --timeout=10m
-
-echo "==> Deploying OpenTelemetry Collector (log retention: ${LOG_RETENTION_DAYS} days)..."
-kubectl apply -f signoz/otel-collector-rbac.yaml
-kubectl apply -f signoz/otel-collector-configmap.yaml
-
-# Inject LOG_RETENTION_DAYS into DaemonSet env before applying
-sed "s/value: \"7\"/value: \"${LOG_RETENTION_DAYS}\"/" signoz/otel-collector-daemonset.yaml | kubectl apply -f -
 
 echo "==> Deploying microservices via Helm..."
 helm dependency update helm/user-service
@@ -39,13 +33,12 @@ helm upgrade --install order-service helm/order-service --namespace default --wa
 echo ""
 echo "==> All services deployed!"
 echo ""
-echo "--- Access URLs ---"
-echo "User Service:  $(minikube service user-service --url)"
-echo "Order Service: $(minikube service order-service --url)"
-kubectl patch svc signoz -n platform -p '{"spec":{"type":"NodePort"}}' 2>/dev/null || true
-echo "SigNoz UI:     $(minikube service signoz --namespace platform --url)"
-echo ""
-echo "--- Port-forward for external access ---"
+echo "--- Access URLs (use port-forward) ---"
 echo "Run: kubectl port-forward svc/user-service 3000:3000 --address 0.0.0.0 &"
 echo "Run: kubectl port-forward svc/order-service 3001:3001 --address 0.0.0.0 &"
 echo "Run: kubectl port-forward svc/signoz 8080:8080 --address 0.0.0.0 -n platform &"
+echo ""
+echo "Then open:"
+echo "  User Service:  http://<host-ip>:3000/users"
+echo "  Order Service: http://<host-ip>:3001/orders"
+echo "  SigNoz UI:     http://<host-ip>:8080"
