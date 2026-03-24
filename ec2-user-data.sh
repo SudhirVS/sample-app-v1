@@ -39,54 +39,54 @@ curl -fsSL https://storage.googleapis.com/minikube/releases/latest/minikube-linu
   -o /usr/local/bin/minikube
 chmod +x /usr/local/bin/minikube
 
-# ── Clone app ─────────────────────────────────────────────────────────────────
-echo "==> [6/7] Cloning app..."
-# Replace the URL below with your actual repo URL
-git clone https://github.com/SudhirVS/sample-app-v1.git "$APP_DIR"
-chown -R ubuntu:ubuntu "$APP_DIR"
+# # ── Clone app ─────────────────────────────────────────────────────────────────
+# echo "==> [6/7] Cloning app..."
+# # Replace the URL below with your actual repo URL
+# git clone https://github.com/SudhirVS/sample-app-v1.git "$APP_DIR"
+# chown -R ubuntu:ubuntu "$APP_DIR"
 
-# ── Deploy ────────────────────────────────────────────────────────────────────
-echo "==> [7/7] Deploying app as ubuntu user..."
-sudo -u ubuntu bash -c "
-  export HOME=/home/ubuntu
-  export LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS}
+# # ── Deploy ────────────────────────────────────────────────────────────────────
+# echo "==> [7/7] Deploying app as ubuntu user..."
+# sudo -u ubuntu bash -c "
+#   export HOME=/home/ubuntu
+#   export LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS}
 
-  # Start Minikube with docker driver
-  minikube start --driver=docker --cpus=3 --memory=12288 --disk-size=25g
+#   # Start Minikube with docker driver
+#   minikube start --driver=docker --cpus=3 --memory=12288 --disk-size=25g
 
-  # Point shell to Minikube's Docker daemon
-  eval \$(minikube docker-env)
+#   # Point shell to Minikube's Docker daemon
+#   eval \$(minikube docker-env)
 
-  # Build images
-  docker build -t user-service:latest ${APP_DIR}/services/user-service
-  docker build -t order-service:latest ${APP_DIR}/services/order-service
+#   # Build images
+#   docker build -t user-service:latest ${APP_DIR}/services/user-service
+#   docker build -t order-service:latest ${APP_DIR}/services/order-service
 
-  # SigNoz
-  helm repo add signoz https://charts.signoz.io
-  helm repo update
-  kubectl apply -f ${APP_DIR}/signoz/namespace.yaml
-  helm upgrade --install signoz signoz/signoz \
-    --namespace platform \
-    --set frontend.service.type=NodePort \
-    --wait --timeout=8m
+#   # SigNoz
+#   helm repo add signoz https://charts.signoz.io
+#   helm repo update
+#   kubectl apply -f ${APP_DIR}/signoz/namespace.yaml
+#   helm upgrade --install signoz signoz/signoz \
+#     --namespace platform \
+#     --set frontend.service.type=NodePort \
+#     --wait --timeout=8m
 
-  # OTel Collector
-  kubectl apply -f ${APP_DIR}/signoz/otel-collector-rbac.yaml
-  kubectl apply -f ${APP_DIR}/signoz/otel-collector-configmap.yaml
-  sed 's/value: \"7\"/value: \"${LOG_RETENTION_DAYS}\"/' \
-    ${APP_DIR}/signoz/otel-collector-daemonset.yaml | kubectl apply -f -
+#   # OTel Collector
+#   kubectl apply -f ${APP_DIR}/signoz/otel-collector-rbac.yaml
+#   kubectl apply -f ${APP_DIR}/signoz/otel-collector-configmap.yaml
+#   sed 's/value: \"7\"/value: \"${LOG_RETENTION_DAYS}\"/' \
+#     ${APP_DIR}/signoz/otel-collector-daemonset.yaml | kubectl apply -f -
 
-  # Microservices
-  helm dependency update ${APP_DIR}/helm/user-service
-  helm dependency update ${APP_DIR}/helm/order-service
-  helm upgrade --install user-service ${APP_DIR}/helm/user-service --namespace default --wait
-  helm upgrade --install order-service ${APP_DIR}/helm/order-service --namespace default --wait
+#   # Microservices
+#   helm dependency update ${APP_DIR}/helm/user-service
+#   helm dependency update ${APP_DIR}/helm/order-service
+#   helm upgrade --install user-service ${APP_DIR}/helm/user-service --namespace default --wait
+#   helm upgrade --install order-service ${APP_DIR}/helm/order-service --namespace default --wait
 
-  # Print URLs
-  echo '--- Access URLs ---'
-  echo 'User Service:  '\$(minikube service user-service --url)
-  echo 'Order Service: '\$(minikube service order-service --url)
-  echo 'SigNoz UI:     '\$(minikube service signoz-frontend --namespace platform --url)
-" >> /var/log/user-data.log 2>&1
+#   # Print URLs
+#   echo '--- Access URLs ---'
+#   echo 'User Service:  '\$(minikube service user-service --url)
+#   echo 'Order Service: '\$(minikube service order-service --url)
+#   echo 'SigNoz UI:     '\$(minikube service signoz-frontend --namespace platform --url)
+# " >> /var/log/user-data.log 2>&1
 
-echo "==> Bootstrap complete. Check /var/log/user-data.log for URLs."
+# echo "==> Bootstrap complete. Check /var/log/user-data.log for URLs."
